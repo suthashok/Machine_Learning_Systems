@@ -111,3 +111,19 @@ To avoid bias due to maturity, the data will be censored for following criteria:
 
 ---
 
+## 3. Risk Decision framework
+
+Model outputs risk scores pi, typically ranges from (0 to 1000, or 0.000 to 1.000). However the Risk decision still needs to be defined clearly based on risk score.
+
+Risk Decision framework maps model score to action:
+
+|Score Range|Action|
+|---|---|
+|(0-300) Low Risk|Approve|
+|(301-700) Medium Risk|Step-up Authentication|
+|(701-1000) High Risk|Decline|
+
+Thresholds should be decided in accoradance with **maximize net expected** (defined above) value subject to guardrails.
+
+---
+
