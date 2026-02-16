@@ -63,3 +63,51 @@ The ML system must satisfy following constraints:
 ---
 
 
+## 2. High Level Timeline Framing
+
+### 2.1 Prediction Timestamp
+
+- t0 = transaction attempt time
+    
+    - Constraint 1 : Model must score using only data available at or before t0
+    
+    For ith transaction, feature set should meet following:-
+
+    Feature_i=f(Data≤t0)
+
+    This ensures on post-transaction leakage.
+
+---
+
+### 2.2 Feature Lookback Window
+
+Features can include aggregations over following periods:
+
+- Previous 30 to 90 days
+    - transaction history
+    - Device usage history
+    - Account behavioral velocity
+    - Profile/Funding Instrument changes
+    
+All Lookback computations will be relative to t0.
+
+---
+
+### 2.3 Outcome Window
+
+- For Card transactions, fraud is defined as chargeback events occurring within 1–180 days post transaction. Chargeback window is t0+ 1 days (specific Geo/Processor might have different end date cutoff).
+
+- For model outcome window will be set based on Historical Vintage Arrivals. tm will be the period when nearly ~80% of chargebacks are arrived.
+
+- Outcome window = tm (typically 30day/45days for most Geos)
+
+---
+
+### 2.4 Label Maturity & Right Censoring
+
+To avoid bias due to maturity, the data will be censored for following criteria:
+
+- Exclude transactions where t0+tm exceeds data cutoff. (These will be recent transactions (t < t0+tm) which will be biased (for Non-Fraud) as arrival window is incomplete and should be excluded from training/validation sets.
+
+---
+
