@@ -125,5 +125,34 @@ Risk Decision framework maps model score to action:
 
 Thresholds should be decided in accoradance with **maximize net expected** (defined above) value subject to guardrails.
 
+There will also be default Risk action in-case model score is not available or doesn't fall in these buckets. 
+
 ---
 
+## 4. Evaluation Framework
+
+### 4.1 Business Metrics
+
+- Net expected value per transaction lift    
+- Fraud loss reduction (bps) lift    
+- Fraud capture rate at fixed approval rate
+- Incremental customer contact rate
+    
+---
+
+### 4.2 Model Metrics
+
+- PR-AUC (class imbalance aware)
+- Calibration error
+- Threshold stability
+- Score distribution stability
+    
+---
+
+### 4.3 Operational Metrics
+
+- Latency (P50 / P95)
+- Manual review volume
+- System fallback rate
+
+---
