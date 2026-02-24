@@ -156,3 +156,30 @@ There will also be default Risk action in-case model score is not available or d
 - System fallback rate
 
 ---
+
+## 5. Retraining & Model Lifecycle
+
+### 5.1 Base Cadence
+
+- Quarterly retraining using matured labels. (This ensures any seasonal variations as well as recent fraud trends are covered.)
+
+---
+
+### 5.2 Trigger-Based Retraining
+
+Triggered if:
+
+- PSI > 0.2 on critical features (top 10% in feature immportance list)
+- Fraud rate shift > 50%
+- Fraud capture rate drop > 25%
+- Score distribution shift > 10%
+
+---
+
+### 5.3 Validation Strategy
+
+- Out-of-time validation
+- Backtesting against historical policy  
+- Stability analysis across segments
+- Challenger Business Vintage based Forecast for overall loss rate
+
