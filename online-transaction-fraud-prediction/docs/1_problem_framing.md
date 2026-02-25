@@ -183,3 +183,41 @@ Triggered if:
 - Stability analysis across segments
 - Challenger Business Vintage based Forecast for overall loss rate
 
+
+--- 
+
+
+## 6. Monitoring Framework
+
+### 6.1 Business Monitoring (Pre/Post)
+
+- Approval rate 
+- Fraud rate
+- Net expected value
+- Contact rate
+
+---
+
+### 6.2 Data Drift Monitoring
+
+- PSI on top features (top 10)
+- Missing rate changes 
+- Cardinality shifts
+
+---
+
+### 6.3 Model Drift Monitoring
+
+- Score distribution
+- Calibration drift
+- Capture rate stability
+
+---
+
+### 6.4 Operational Monitoring
+
+- Latency 
+- Manual review overflow
+- System timeouts
+
+---
