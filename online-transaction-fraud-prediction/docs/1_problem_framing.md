@@ -221,3 +221,15 @@ Triggered if:
 - System timeouts
 
 ---
+
+---
+
+## 7. Governance & Risk Controls
+
+- Model versioning & lineage
+- Feature reproducibility guarantees
+- Bias & fairness evaluation
+- Rollback strategy
+- Champion / challenger setup
+
+---
