@@ -117,15 +117,14 @@ Model outputs risk scores pi, typically ranges from (0 to 1000, or 0.000 to 1.00
 
 Risk Decision framework maps model score to action:
 
-|Score Range|Action|
-|---|---|
-|(0-300) Low Risk|Approve|
-|(301-700) Medium Risk|Step-up Authentication|
-|(701-1000) High Risk|Decline|
+If EVa,i > EVd,i → Approve
+Else → Decline
 
-Thresholds should be decided in accoradance with **maximize net expected** (defined above) value subject to guardrails.
+This ensures that Thresholds are decided in accoradance with **maximize net expected** (defined above) value .
 
-There will also be default Risk action in-case model score is not available or doesn't fall in these buckets. 
+There will also be default Risk action in-case model score is not available or doesn't fall in these buckets.
+
+Here it is the simplified version of evalution based on IEEE CIS dataset. Production version would add operational costs like chargeback fees, recovery rates, or step-up auth etc. 
 
 ---
 
