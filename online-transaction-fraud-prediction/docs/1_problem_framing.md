@@ -113,18 +113,25 @@ To avoid bias due to maturity, the data will be censored for following criteria:
 
 ## 3. Risk Decision framework
 
-Model outputs risk scores pi, typically ranges from (0 to 1000, or 0.000 to 1.000). However the Risk decision still needs to be defined clearly based on risk score.
+We need to decide: approve or decline each transaction. The model gives us a fraud probability (pi between 0 and 1).
 
-Risk Decision framework maps model score to action:
+When we approve, we make margin but lose money if it's fraud:.
+
+**Decision Logic:**
 
 If EVa,i > EVd,i → Approve
 Else → Decline
 
-This ensures that Thresholds are decided in accoradance with **maximize net expected** (defined above) value .
 
-There will also be default Risk action in-case model score is not available or doesn't fall in these buckets.
+**For this exercise (IEEE CIS dataset):**
 
-Here it is the simplified version of evalution based on IEEE CIS dataset. Production version would add operational costs like chargeback fees, recovery rates, or step-up auth etc. 
+We're assuming 2% margin and ignoring chargeback fees, recovery, step-up auth, etc. Real systems deal with all that.
+
+**In production you'd add:**
+- Chargeback fees ($25-$100 per fraudulent transaction)
+- Some fraud gets recovered (~30%)
+- Ask customers for extra auth (costs ~$4, succeeds ~85% of the time)
+- Customers might drop off if you ask too many questions (hidden cost)
 
 ---
 
