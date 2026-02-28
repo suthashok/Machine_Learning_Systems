@@ -7,30 +7,28 @@ This document outlines my thinking of how to approach a Fraud detection System.
 
 ## 1. Business Objective
 
-### 1.1 What is Optimization target?
+### 1.1 What are we optimizing for?
 
-Design a real-time fraud risk prediction system that **maximizes net expected value (NEV)** per transaction.
+We want to maximize how much money we make per transaction. Not just catch fraud—make money.
 
-For transaction _i_:
+For each transaction, we need to decide: approve it or decline it. Here's what we care about:
 
-Let:
-
-- pi​ = predicted fraud probability
+- pi​ = probability that is it a fraudulent transaction (between 0 and 1)
     
 - TAi​ = transaction amount
     
 - M = revenue margin rate
     
-- Cx = Customer contact cost (Asuume $4 per contact)
+- Cx = Customer contact cost (Asumme $4 per contact, for a transaction customer contact once)
     
+**If we approve:**
 
-Expected value if the model **Approve**:
+We make margin on legit transactions and lose the whole amount on fraudulent ones:
 
     EVa,i = (1−pi) (m⋅TAi)− pi.TAi
 
-    Expect Value at Approve = Non Fraud Probability * Margin Rate * Transaction Amount - Fraud Probability * Transaction Amount
+In plain terms: (chance it's good × what we make) - (chance it's fraud × what we lose)
 
-    (Benefit/Margin of Approving Good transaction - Cost of Approving a Bad transaction)
 
 
 Expected value if model **Decline**:
