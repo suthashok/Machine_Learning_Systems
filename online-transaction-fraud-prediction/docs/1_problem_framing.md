@@ -19,7 +19,7 @@ For each transaction, we need to decide: approve it or decline it. Here's what w
     
 - M = revenue margin rate
     
-- Cx = Customer contact cost (Asumme $4 per contact, for a transaction customer contact once)
+- Cx = Customer contact servicing cost (Asumme $4 per contact, for a transaction customer contact once)
     
 **If we approve:**
 
@@ -29,17 +29,20 @@ We make margin on legit transactions and lose the whole amount on fraudulent one
 
 In plain terms: (chance it's good × what we make) - (chance it's fraud × what we lose)
 
+**If we decline:**
 
 
-Expected value if model **Decline**:
+We lose the margin we would have made, plus some customers will call us asking why:
 
     EVd,i = -(1−pi) (m⋅TAi) − Cx
 
-    (Lost margin of declining a Good transaction + Good Customer Contact Cost)
+In plain terms: (chance it was legit × margin we lose) + (legit customers call support, costs money)
+
+Note: Only legitimate customers call—fraudsters typically don't.
 
 Decision rule:
 
-    Choose Action with Highest expected Value
+    We pick the action whichever makes us more money.
 
 ---
 
