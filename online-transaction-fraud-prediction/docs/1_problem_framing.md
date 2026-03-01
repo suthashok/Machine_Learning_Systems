@@ -46,29 +46,21 @@ Decision rule:
 
 ---
 
-### 1.2 Business Constraints (Guardrails)
+### 1.2 Business Constraints
 
-The ML system must satisfy following constraints:
+For this exercise with IEEE CIS data:
 
-- No significant impact on Approval rate (Acceptable range ≥ baseline – 0.5%)
+- Keep approval rate close to baseline (don't over-decline)
+- Model must output well-calibrated probabilities (so our EVa/EVd math works)
     
-- No Delay on SLA (P95 latency < 100ms)
-    
-- Manual review queue within operational capacity (basline + 5%)
-    
-- Customer contact increase < 2% (Considering already hit of 2% take rate )
-    
-- Fraud loss within regulatory tolerance (<100bps or equivalent for specific Geo)
-    
-
 ---
 
 
-## 2. High Level Timeline Framing
+## 2. Timeline and Data Labeling
 
-### 2.1 Prediction Timestamp
+### 2.1 When do we make the prediction?
 
-- t0 = transaction attempt time
+- We score at t0 = the moment the customer tries to make the transaction.
     
     - Constraint 1 : Model must score using only data available at or before t0
     
@@ -76,21 +68,19 @@ The ML system must satisfy following constraints:
 
     Feature_i=f(Data≤t0)
 
-    This ensures on post-transaction leakage.
+    This ensures no post-transaction leakage.
 
 ---
 
-### 2.2 Feature Lookback Window
+### 2.2 How much history do we look at?
 
-Features can include aggregations over following periods:
-
-- Previous 30 to 90 days
-    - transaction history
-    - Device usage history
-    - Account behavioral velocity
-    - Profile/Funding Instrument changes
+We look back 30-90 days to build features:
+- How many transactions in the last 30 days?
+- What devices has this customer used?
+- Is their spending pattern changing?
+- Any recent changes to their account or payment method?
     
-All Lookback computations will be relative to t0.
+All calculations are relative to t0 (the transaction time).
 
 ---
 
