@@ -86,19 +86,23 @@ All calculations are relative to t0 (the transaction time).
 
 ### 2.3 Outcome Window
 
-- For Card transactions, fraud is defined as chargeback events occurring within 1–180 days post transaction. Chargeback window is t0+ 1 days (specific Geo/Processor might have different end date cutoff).
+- For card transactions, fraud shows up as chargebacks. They can happen anywhere from 1-180 days after the transaction.
+- But we can't wait 180 days to label data. So we wait for tm days (usually 30-45 days) until ~80% of chargebacks have shown up. That's our label cutoff.
 
-- For model outcome window will be set based on Historical Vintage Arrivals. tm will be the period when nearly ~80% of chargebacks are arrived.
+**Example:** If a transaction happens on Jan 1, we label it as fraud or not-fraud around Feb 10-15 (after most chargebacks arrive).
+
 
 - Outcome window = tm (typically 30day/45days for most Geos)
 
 ---
 
-### 2.4 Label Maturity & Right Censoring
+### 2.4 Dealing with incomplete data
 
-To avoid bias due to maturity, the data will be censored for following criteria:
+- We can't use transactions that don't have a complete label window yet.
 
-- Exclude transactions where t0+tm exceeds data cutoff. (These will be recent transactions (t < t0+tm) which will be biased (for Non-Fraud) as arrival window is incomplete and should be excluded from training/validation sets.
+**Example:** If today is March 1 and we need 45 days to label, we can't use transactions from after Feb 14 (because we don't know yet if they're fraud).
+
+- If we include them, we artificially bias the training data toward "not fraud" because chargebacks haven't arrived yet.
 
 ---
 
