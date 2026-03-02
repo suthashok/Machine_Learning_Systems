@@ -144,23 +144,31 @@ The main metric is: **did we make more money?**
 
 - **Approval rate** — What % of transactions did we approve? (Important because it should be close to baseline)
 
- 
+
 ---
 
 ### 4.2 Model Metrics
 
-- PR-AUC (class imbalance aware)
-- Calibration error
-- Threshold stability
-- Score distribution stability
+These tell us if the model is working correctly:
+
+- **PR-AUC** — We have imbalanced data (fraud is rare). Regular AUC is useless here. PR-AUC (precision-recall) actually matters.
+
+- **Calibration** — Our NEV math assumes pi (fraud probability) is accurate. If the model says 5% fraud but it's actually 10%, our decisions are wrong. Check if predictions match reality.
+
+- **Score distribution** — Does the model output a nice spread of probabilities (0.01, 0.05, 0.2, 0.8, etc.) or does everything cluster around 0.5? Clustering = bad.
+
     
 ---
 
-### 4.3 Operational Metrics
+### 4.3 Segment Analysis
 
-- Latency (P50 / P95)
-- Manual review volume
-- System fallback rate
+Don't just look at overall metrics. Check if the model works equally well for:
+
+- High-value vs. low-value transactions
+- Different merchant categories
+- Different payment methods (debit vs. credit)
+
+If it works great on $100 transactions but fails on $5000 ones, we have a problem.
 
 ---
 
