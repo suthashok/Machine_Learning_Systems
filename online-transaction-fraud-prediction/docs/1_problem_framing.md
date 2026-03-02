@@ -134,11 +134,17 @@ We're assuming 2% margin and ignoring chargeback fees, recovery, step-up auth, e
 
 ### 4.1 Business Metrics
 
-- Net expected value per transaction lift    
-- Fraud loss reduction (bps) lift    
-- Fraud capture rate at fixed approval rate
-- Incremental customer contact rate
-    
+The main metric is: **did we make more money?**
+
+- **Net Expected Value (NEV) per transaction** — This is what we optimized for. How much money do we make on average per transaction with our model vs. without it?
+
+- **NEV lift vs. baseline** — If we just approved everything, what would NEV be? How much better is our model?
+
+- **Fraud loss as % of transaction volume** — How much money do we actually lose to fraud? (This tells us if our thresholds are working)
+
+- **Approval rate** — What % of transactions did we approve? (Important because it should be close to baseline)
+
+ 
 ---
 
 ### 4.2 Model Metrics
