@@ -172,13 +172,15 @@ If it works great on $100 transactions but fails on $5000 ones, we have a proble
 
 ---
 
-## 5. Retraining & Model Lifecycle
+## 5. Model Validation
 
-### 5.1 Base Cadence
+### 5.1 Train/Test Split
 
-- Quarterly retraining using matured labels. (This ensures any seasonal variations as well as recent fraud trends are covered.)
+Split the data into:
+- **Training set:** Older transactions (build the model)
+- **Test set:** Newer transactions (measure how it performs)
 
----
+This simulates: you train on past data, then see how it does on new unseen data.
 
 ### 5.2 Trigger-Based Retraining
 
