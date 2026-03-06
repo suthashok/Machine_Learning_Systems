@@ -182,14 +182,14 @@ Split the data into:
 
 This simulates: you train on past data, then see how it does on new unseen data.
 
-### 5.2 Trigger-Based Retraining
+### 5.2 Cross-Validation
 
-Triggered if:
+Use time-series cross-validation (not random splits). This respects the order of transactions:
+- Fold 1: Train on Jan-Feb, test on Mar
+- Fold 2: Train on Jan-Mar, test on Apr
+- Fold 3: Train on Jan-Apr, test on May
 
-- PSI > 0.2 on critical features (top 10% in feature immportance list)
-- Fraud rate shift > 50%
-- Fraud capture rate drop > 25%
-- Score distribution shift > 10%
+Why? Because in real life, the model sees old data and scores new data. Random shuffling breaks that.
 
 ---
 
