@@ -193,13 +193,14 @@ Why? Because in real life, the model sees old data and scores new data. Random s
 
 ---
 
-### 5.3 Validation Strategy
+### 5.3 Segment Analysis
 
-- Out-of-time validation
-- Backtesting against historical policy  
-- Stability analysis across segments
-- Challenger Business Vintage based Forecast for overall loss rate
+Check if the model works equally well on different groups:
+- High-value vs. low-value transactions
+- Different merchant types
+- Different payment methods
 
+If it works great overall but fails on one segment, you have a problem.
 
 --- 
 
