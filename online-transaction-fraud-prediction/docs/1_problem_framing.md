@@ -215,6 +215,20 @@ If it works great overall but fails on one segment, you have a problem.
 
 ---
 
+### 6.2 Is the model reliable?
+
+- **Calibration:** Do predictions match reality? (If model says 5% fraud, is it actually ~5%?)
+- **Score distribution:** Do we get a range of probabilities or does everything cluster in the middle?
+- **Segment performance:** Does it work equally well on high-value, low-value, different merchant types, etc.?
+
+
+---
+
+### 6.3 What could go wrong in production?
+
+- **Data drift:** If real-world transaction patterns change, the model might break
+- **Concept drift:** If fraud tactics change, the model might break
+- **Edge cases:** Does it work on transactions from different countries, payment methods, etc.?
 
 
 ---
