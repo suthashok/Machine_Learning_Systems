@@ -209,34 +209,13 @@ If it works great overall but fails on one segment, you have a problem.
 
 ### 6.1 Business Monitoring (Pre/Post)
 
-- Approval rate 
-- Fraud rate
-- Net expected value
-- Contact rate
+- **Approval rate:** Are we approving roughly the same % of transactions as before?
+- **Fraud rate:** Did fraud go down?
+- **Net Expected Value:** Did we actually make more money?
 
 ---
 
-### 6.2 Data Drift Monitoring
 
-- PSI on top features (top 10)
-- Missing rate changes 
-- Cardinality shifts
-
----
-
-### 6.3 Model Drift Monitoring
-
-- Score distribution
-- Calibration drift
-- Capture rate stability
-
----
-
-### 6.4 Operational Monitoring
-
-- Latency 
-- Manual review overflow
-- System timeouts
 
 ---
 
