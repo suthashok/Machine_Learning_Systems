@@ -253,4 +253,14 @@ So someone else can rebuild this exact model 6 months from now.
 - Tag the version you used for the final model
 - Keep a record of what changed between versions
 
+### 7.3 Check for Bias
+
+Before calling it done, answer:
+- Does the model treat high-value and low-value transactions fairly?
+- Does it work equally well for different merchant categories?
+- Are any groups getting declined way more often than others?
+
+If yes, investigate why. Document the bias and decide if it's acceptable.
+
+
 ---
