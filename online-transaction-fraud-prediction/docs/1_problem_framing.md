@@ -13,7 +13,7 @@ We want to maximize how much money we make per transaction. Not just catch fraud
 
 For each transaction, we need to decide: approve it or decline it. Here's what we care about:
 
-- pi​ = probability that is it a fraudulent transaction (between 0 and 1)
+- pi​ = probability that it is a fraudulent transaction (between 0 and 1)
     
 - TAi​ = transaction amount
     
@@ -58,6 +58,9 @@ For this exercise with IEEE CIS data:
 
 ## 2. Timeline and Data Labeling
 
+**Note:** Sections 2.3 and 2.4 explain production concepts. For IEEE CIS dataset, the data is pre-labeled. 
+These sections help understand the real-world problem that IEEE CIS approximates.
+
 ### 2.1 When do we make the prediction?
 
 - We score at t0 = the moment the customer tries to make the transaction.
@@ -73,6 +76,9 @@ For this exercise with IEEE CIS data:
 ---
 
 ### 2.2 How much history do we look at?
+
+For a production system, we look back 30-90 days. For IEEE CIS dataset, we use whatever transaction history is available in the snapshot:
+
 
 We look back 30-90 days to build features:
 - How many transactions in the last 30 days?
@@ -110,7 +116,7 @@ All calculations are relative to t0 (the transaction time).
 
 We need to decide: approve or decline each transaction. The model gives us a fraud probability (pi between 0 and 1).
 
-When we approve, we make margin but lose money if it's fraud:.
+When we approve, we make margin but lose money if it's fraud.
 
 **Decision Logic:**
 
@@ -133,6 +139,8 @@ We're assuming 2% margin and ignoring chargeback fees, recovery, step-up auth, e
 ## 4. Evaluation Framework
 
 ### 4.1 Business Metrics
+
+**Baseline:** We assume the baseline is "approve all transactions" (status quo before the model).
 
 The main metric is: **did we make more money?**
 
@@ -190,17 +198,6 @@ Use time-series cross-validation (not random splits). This respects the order of
 - Fold 3: Train on Jan-Apr, test on May
 
 Why? Because in real life, the model sees old data and scores new data. Random shuffling breaks that.
-
----
-
-### 5.3 Segment Analysis
-
-Check if the model works equally well on different groups:
-- High-value vs. low-value transactions
-- Different merchant types
-- Different payment methods
-
-If it works great overall but fails on one segment, you have a problem.
 
 --- 
 
