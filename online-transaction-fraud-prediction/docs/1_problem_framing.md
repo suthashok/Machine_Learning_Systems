@@ -234,12 +234,17 @@ If it works great overall but fails on one segment, you have a problem.
 ---
 
 
-## 7. Governance & Risk Controls
+## 7. Governance & Reproducibility
 
-- Model versioning & lineage
-- Feature reproducibility guarantees
-- Bias & fairness evaluation
-- Rollback strategy
-- Champion / challenger setup
+### 7.1 Document Your Decisions
+
+Write down:
+- Which version of IEEE CIS dataset you used
+- How you split train/test (dates, percentages)
+- How you handled missing values
+- Which features you kept and which you dropped
+- Why you made each choice
+
+So someone else can rebuild this exact model 6 months from now.
 
 ---
