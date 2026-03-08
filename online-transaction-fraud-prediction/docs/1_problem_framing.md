@@ -262,5 +262,13 @@ Before calling it done, answer:
 
 If yes, investigate why. Document the bias and decide if it's acceptable.
 
+### 7.4 Validate on Real Data Characteristics
+
+- Does the model work on the full range of transaction amounts in the dataset?
+- Does it handle missing values correctly?
+- Are there edge cases (ultra-high value, ultra-low value) where it breaks?
+
+Test these before declaring success.
+
 
 ---
