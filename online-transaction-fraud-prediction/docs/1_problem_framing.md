@@ -247,4 +247,10 @@ Write down:
 
 So someone else can rebuild this exact model 6 months from now.
 
+### 7.2 Version Control
+
+- Commit your code to GitHub with clear messages
+- Tag the version you used for the final model
+- Keep a record of what changed between versions
+
 ---
