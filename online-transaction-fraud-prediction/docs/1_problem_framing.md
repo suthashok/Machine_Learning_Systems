@@ -3,6 +3,18 @@
 
 This document outlines my thinking of how to approach a Fraud detection System.
 
+Transaction → Feature Store → Model → Policy Engine → Decision
+                              ↓
+                          Monitoring
+
+As evident above, ML model alone is not sufficient for Fraud detection system, it consist of:
+
+1. Rules
+2. ML model
+3. Policy thresholds
+4. Review workflow
+5. Monitoring
+
 ---
 
 ## 1. Business Objective
