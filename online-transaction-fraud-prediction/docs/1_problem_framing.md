@@ -15,6 +15,7 @@ As evident above, ML model alone is not sufficient for Fraud detection system, i
 4. Review workflow
 5. Monitoring
 
+
 ---
 
 ## 1. Business Objective
@@ -279,5 +280,16 @@ If yes, investigate why. Document the bias and decide if it's acceptable.
 
 Test these before declaring success.
 
+
+---
+
+
+Just to recap important design principles:-
+
+- Fraud systems optimize expected value, not model metrics.
+- Model outputs probability, but policy decides action.
+- Feature computation must be snapshot-consistent at t0.
+- Training datasets must handle label maturity and right censoring.
+- Monitoring must track business, model, data, and operational drift.
 
 ---
