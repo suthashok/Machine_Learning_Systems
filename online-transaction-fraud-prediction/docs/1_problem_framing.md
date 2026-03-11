@@ -297,10 +297,10 @@ Just to recap important design principles:-
 
 Further design details for this system are documented in:
 
-- 2_system_design.md
-- 3_data_design.md
-- 4_modeling_strategy.md
-- 5_evaluation_framework.md
-- 6_monitoring_and_retraining.md
+- 2_exploratory_data_analysis.md
+- 3_feature_engineering.md
+- 4_data_leakage_prevention.md
+- 5_modelling_and_calibration.md
+- 6_threshold_optimization.md
 
 ---
