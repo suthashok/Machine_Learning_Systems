@@ -297,10 +297,12 @@ Just to recap important design principles:-
 
 Further design details for this system are documented in:
 
-- [2_exploratory_data_analysis.md](2_exploratory_data_analysis.md)
-- [3_feature_engineering.md](3_feature_engineering.md)
-- [4_data_leakage_prevention.md](4_data_leakage_prevention.md)
-- [5_modelling_and_calibration.md](5_modelling_and_calibration.md)
-- [6_threshold_optimization.md](6_threshold_optimization.md)
+- [2_data_sources_and_structure.md](2_data_sources_and_structure.md)
+- [3_exploratory_data_analysis.md](3_exploratory_data_analysis.md)
+- [4_feature_engineering.md](4_feature_engineering.md)
+- [5_data_leakage_prevention.md](5_data_leakage_prevention.md)
+- [6_modelling_and_calibration.md](6_modelling_and_calibration.md)
+- [7_threshold_optimization.md](7_threshold_optimization.md)
+- [8_monitoring_and_retraining.md](8_monitoring_and_retraining.md)
 
 ---
