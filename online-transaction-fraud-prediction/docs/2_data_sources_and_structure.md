@@ -264,3 +264,5 @@ The dataset contains signals related to multiple behavioral entities:
 These entities enable construction of behavioral and identity-based features for fraud detection.
 
 ---
+
+In next document [3_exploratory_data_analysis.md](3_exploratory_data_analysis.md) we will be exploring the above data.
