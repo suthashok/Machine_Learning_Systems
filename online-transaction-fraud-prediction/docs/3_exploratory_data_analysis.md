@@ -5,7 +5,7 @@
 
 Before jumping into feature engineering, we need to understand what we're dealing with. Main questions:
 
-- How much fraud is actually in this dataset? (~3-4% based on competition docs)
+- How much fraud is actually in this dataset?
 - Does fraud look different across transaction types?
 - Any obvious patterns that separate fraud from legit?
 - What might be useful for feature engineering?
