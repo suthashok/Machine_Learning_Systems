@@ -158,7 +158,7 @@ That separation matters because:
 
 ## What comes next
 
-- `2_data_sources_and_structure.md` -> what data we actually have
-- `3_exploratory_data_analysis.md` -> what patterns are worth testing
-- `4_feature_engineering.md` -> how those patterns become model features
+- [2_data_sources_and_structure.md](2_data_sources_and_structure.md) -> what data we actually have
+- [3_exploratory_data_analysis.md](3_exploratory_data_analysis.md) -> what patterns are worth testing
+- [4_feature_engineering.md](4_feature_engineering.md) -> how those patterns become model features
 - later docs -> leakage prevention, modeling, thresholds, monitoring
