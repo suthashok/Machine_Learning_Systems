@@ -1,308 +1,164 @@
 
-# Online Transaction Fraud Detection System – Problem Framing
+# Problem Framing
 
-This document outlines my thinking of how to approach a Fraud detection System.
+## Goal
 
-Transaction → Feature Store → Model → Policy Engine → Decision
-                              ↓
-                          Monitoring
+This project has two goals:
 
-As evident above, ML model alone is not sufficient for Fraud detection system, it consist of:
+1. Build a strong offline solution for the IEEE-CIS fraud detection problem.
+2. Show how the same problem would be framed in a real production fraud system.
 
-1. Rules
-2. ML model
-3. Policy thresholds
-4. Review workflow
-5. Monitoring
-
+The IEEE-CIS dataset is a labeled offline snapshot. So the implementation here is an offline modeling exercise, but the documentation will also cover the production thinking behind it.
 
 ---
 
-## 1. Business Objective
+## What problem are we solving?
 
-### 1.1 What are we optimizing for?
+At the dataset level, the task is simple:
 
-We want to maximize how much money we make per transaction. Not just catch fraud—make money.
+> Predict `isFraud` for each transaction.
 
-For each transaction, we need to decide: approve it or decline it. Here's what we care about:
+At the system level, the real problem is broader:
 
-- pi​ = probability that it is a fraudulent transaction (between 0 and 1)
-    
-- TAi​ = transaction amount
-    
-- M = revenue margin rate
-    
-- Cx = Customer contact servicing cost (Asumme $4 per contact, for a transaction customer contact once)
-    
-**If we approve:**
+> Use that fraud risk estimate to make a good transaction decision.
 
-We make margin on legit transactions and lose the whole amount on fraudulent ones:
+That means this is not just a classification problem. In production, the model is one part of a larger decision system:
+- rules
+- ML model
+- thresholds / policy
+- review workflow
+- monitoring
 
-    EVa,i = (1−pi) (m⋅TAi)− pi.TAi
-
-In plain terms: (chance it's good × what we make) - (chance it's fraud × what we lose)
-
-**If we decline:**
-
-
-We lose the margin we would have made, plus some customers will call us asking why:
-
-    EVd,i = -(1−pi) (m⋅TAi) − Cx
-
-In plain terms: (chance it was legit × margin we lose) + (legit customers call support, costs money)
-
-Note: Only legitimate customers call—fraudsters typically don't.
-
-Decision rule:
-
-    We pick the action whichever makes us more money.
+For IEEE-CIS, we only implement the modeling core. The rest is documented as production context.
 
 ---
 
-### 1.2 Business Constraints
+## Business framing
 
-For this exercise with IEEE CIS data:
+Fraud modeling is not just about catching the most fraud.
 
-- Keep approval rate close to baseline (don't over-decline)
-- Model must output well-calibrated probabilities (so our EVa/EVd math works)
-    
----
+Each decision has a tradeoff:
+- approve a bad transaction -> lose money
+- decline a good transaction -> lose revenue + hurt customer experience
 
+So the model should output a fraud probability, and policy should decide what to do with it.
 
-## 2. Timeline and Data Labeling
-
-**Note:** Sections 2.3 and 2.4 explain production concepts. For IEEE CIS dataset, the data is pre-labeled. 
-These sections help understand the real-world problem that IEEE CIS approximates.
-
-### 2.1 When do we make the prediction?
-
-- We score at t0 = the moment the customer tries to make the transaction.
-    
-    - Constraint 1 : Model must score using only data available at or before t0
-    
-    For ith transaction, feature set should meet following:-
-
-    Feature_i=f(Data≤t0)
-
-    This ensures no post-transaction leakage.
+For this project:
+- **offline objective** = learn a strong fraud ranking / probability model
+- **production objective** = use calibrated scores in a decision framework
 
 ---
 
-### 2.2 How much history do we look at?
+## Scope
 
-For a production system, we look back 30-90 days. For IEEE CIS dataset, we use whatever transaction history is available in the snapshot:
+### In scope
+- offline fraud prediction on IEEE-CIS
+- time-aware validation
+- leakage-safe feature engineering
+- model evaluation
+- production-style system thinking in documentation
 
-
-We look back 30-90 days to build features:
-- How many transactions in the last 30 days?
-- What devices has this customer used?
-- Is their spending pattern changing?
-- Any recent changes to their account or payment method?
-    
-All calculations are relative to t0 (the transaction time).
-
----
-
-### 2.3 Outcome Window
-
-- For card transactions, fraud shows up as chargebacks. They can happen anywhere from 1-180 days after the transaction.
-- But we can't wait 180 days to label data. So we wait for tm days (usually 30-45 days) until ~80% of chargebacks have shown up. That's our label cutoff.
-
-**Example:** If a transaction happens on Jan 1, we label it as fraud or not-fraud around Feb 10-15 (after most chargebacks arrive).
-
-
-- Outcome window = tm (typically 30day/45days for most Geos)
+### Out of scope
+- live deployment
+- real-time feature store
+- actual review queue / ops workflow
+- real chargeback pipeline
+- online threshold experimentation
 
 ---
 
-### 2.4 Dealing with incomplete data
+## Key assumptions
 
-- We can't use transactions that don't have a complete label window yet.
+### 1. Prediction happens at transaction time
+For any transaction at time `t0`, features must only use data available at or before `t0`.
 
-**Example:** If today is March 1 and we need 45 days to label, we can't use transactions from after Feb 14 (because we don't know yet if they're fraud).
+No future transactions.
+No future labels.
+No future aggregates.
 
-- If we include them, we artificially bias the training data toward "not fraud" because chargebacks haven't arrived yet.
+This is the main anti-leakage rule.
 
----
+### 2. Transaction order matters
+`TransactionDT` is not a real timestamp, but it does give transaction ordering.
 
-## 3. Risk Decision framework
+We’ll use that ordering for:
+- feature generation
+- train/validation split
+- leakage prevention
 
-We need to decide: approve or decline each transaction. The model gives us a fraud probability (pi between 0 and 1).
+### 3. IEEE-CIS is offline, but production concepts still matter
+The dataset is already labeled, so we do not need to solve label maturity operationally here.
 
-When we approve, we make margin but lose money if it's fraud.
+But in a real fraud system:
+- labels arrive late
+- thresholds matter
+- calibration matters
+- monitoring matters
 
-**Decision Logic:**
-
-If EVa,i > EVd,i → Approve
-Else → Decline
-
-
-**For this exercise (IEEE CIS dataset):**
-
-We're assuming 2% margin and ignoring chargeback fees, recovery, step-up auth, etc. Real systems deal with all that.
-
-**In production you'd add:**
-- Chargeback fees ($25-$100 per fraudulent transaction)
-- Some fraud gets recovered (~30%)
-- Ask customers for extra auth (costs ~$4, succeeds ~85% of the time)
-- Customers might drop off if you ask too many questions (hidden cost)
+So those concepts are included to show production thinking, even if not fully implemented.
 
 ---
 
-## 4. Evaluation Framework
+## What does success look like?
 
-### 4.1 Business Metrics
+### For the IEEE-CIS task
+- strong out-of-time model performance
+- no leakage
+- robust feature engineering
+- good generalization to newer transactions
 
-**Baseline:** We assume the baseline is "approve all transactions" (status quo before the model).
-
-The main metric is: **did we make more money?**
-
-- **Net Expected Value (NEV) per transaction** — This is what we optimized for. How much money do we make on average per transaction with our model vs. without it?
-
-- **NEV lift vs. baseline** — If we just approved everything, what would NEV be? How much better is our model?
-
-- **Fraud loss as % of transaction volume** — How much money do we actually lose to fraud? (This tells us if our thresholds are working)
-
-- **Approval rate** — What % of transactions did we approve? (Important because it should be close to baseline)
-
+### For production-style thinking
+- calibrated probabilities
+- clear separation between model and policy
+- ability to reason about approval rate vs fraud loss
+- monitoring plan for drift and degradation
 
 ---
 
-### 4.2 Model Metrics
+## Evaluation approach
 
-These tell us if the model is working correctly:
+We should not validate this like a generic tabular ML problem.
 
-- **PR-AUC** — We have imbalanced data (fraud is rare). Regular AUC is useless here. PR-AUC (precision-recall) actually matters.
+Fraud is time-dependent, and many features depend on historical behavior. So validation should reflect the real usage pattern:
 
-- **Calibration** — Our NEV math assumes pi (fraud probability) is accurate. If the model says 5% fraud but it's actually 10%, our decisions are wrong. Check if predictions match reality.
+- train on older transactions
+- validate on newer transactions
 
-- **Score distribution** — Does the model output a nice spread of probabilities (0.01, 0.05, 0.2, 0.8, etc.) or does everything cluster around 0.5? Clustering = bad.
-
-    
----
-
-### 4.3 Segment Analysis
-
-Don't just look at overall metrics. Check if the model works equally well for:
-
-- High-value vs. low-value transactions
-- Different merchant categories
-- Different payment methods (debit vs. credit)
-
-If it works great on $100 transactions but fails on $5000 ones, we have a problem.
+Random splits are risky here because they can hide leakage and overstate performance.
 
 ---
 
-## 5. Model Validation
+## Decision-system view
 
-### 5.1 Train/Test Split
+The model output is not the final decision.
 
-Split the data into:
-- **Training set:** Older transactions (build the model)
-- **Test set:** Newer transactions (measure how it performs)
+The model produces:
+- fraud probability / risk score
 
-This simulates: you train on past data, then see how it does on new unseen data.
+A production policy would then decide:
+- approve
+- decline
+- maybe review / step-up (not implemented here)
 
-### 5.2 Cross-Validation
-
-Use time-series cross-validation (not random splits). This respects the order of transactions:
-- Fold 1: Train on Jan-Feb, test on Mar
-- Fold 2: Train on Jan-Mar, test on Apr
-- Fold 3: Train on Jan-Apr, test on May
-
-Why? Because in real life, the model sees old data and scores new data. Random shuffling breaks that.
-
---- 
-
-
-## 6. Monitoring Framework
-
-### 6.1 Business Monitoring (Pre/Post)
-
-- **Approval rate:** Are we approving roughly the same % of transactions as before?
-- **Fraud rate:** Did fraud go down?
-- **Net Expected Value:** Did we actually make more money?
+That separation matters because:
+- model quality is about ranking + probability estimation
+- business quality is about decision outcomes
 
 ---
 
-### 6.2 Is the model reliable?
+## Design principles for the rest of the project
 
-- **Calibration:** Do predictions match reality? (If model says 5% fraud, is it actually ~5%?)
-- **Score distribution:** Do we get a range of probabilities or does everything cluster in the middle?
-- **Segment performance:** Does it work equally well on high-value, low-value, different merchant types, etc.?
-
-
----
-
-### 6.3 What could go wrong in production?
-
-- **Data drift:** If real-world transaction patterns change, the model might break
-- **Concept drift:** If fraud tactics change, the model might break
-- **Edge cases:** Does it work on transactions from different countries, payment methods, etc.?
-
+1. Treat fraud as a decision problem, not just a classification problem.
+2. Respect transaction-time ordering everywhere.
+3. Engineer features around behavior, velocity, and entity risk.
+4. Assume missingness may itself be useful signal.
+5. Keep the IEEE-CIS solution grounded in what would work in production.
 
 ---
 
+## What comes next
 
-## 7. Governance & Reproducibility
-
-### 7.1 Document Your Decisions
-
-Write down:
-- Which version of IEEE CIS dataset you used
-- How you split train/test (dates, percentages)
-- How you handled missing values
-- Which features you kept and which you dropped
-- Why you made each choice
-
-So someone else can rebuild this exact model 6 months from now.
-
-### 7.2 Version Control
-
-- Commit your code to GitHub with clear messages
-- Tag the version you used for the final model
-- Keep a record of what changed between versions
-
-### 7.3 Check for Bias
-
-Before calling it done, answer:
-- Does the model treat high-value and low-value transactions fairly?
-- Does it work equally well for different merchant categories?
-- Are any groups getting declined way more often than others?
-
-If yes, investigate why. Document the bias and decide if it's acceptable.
-
-### 7.4 Validate on Real Data Characteristics
-
-- Does the model work on the full range of transaction amounts in the dataset?
-- Does it handle missing values correctly?
-- Are there edge cases (ultra-high value, ultra-low value) where it breaks?
-
-Test these before declaring success.
-
-
----
-
-
-Just to recap important design principles:-
-
-- Fraud systems optimize expected value, not model metrics.
-- Model outputs probability, but policy decides action.
-- Feature computation must be snapshot-consistent at t0.
-- Training datasets must handle label maturity and right censoring.
-- Monitoring must track business, model, data, and operational drift.
-
----
-
-
-Further design details for this system are documented in:
-
-- [2_data_sources_and_structure.md](2_data_sources_and_structure.md)
-- [3_exploratory_data_analysis.md](3_exploratory_data_analysis.md)
-- [4_feature_engineering.md](4_feature_engineering.md)
-- [5_data_leakage_prevention.md](5_data_leakage_prevention.md)
-- [6_modelling_and_calibration.md](6_modelling_and_calibration.md)
-- [7_threshold_optimization.md](7_threshold_optimization.md)
-- [8_monitoring_and_retraining.md](8_monitoring_and_retraining.md)
-
----
+- `2_data_sources_and_structure.md` -> what data we actually have
+- `3_exploratory_data_analysis.md` -> what patterns are worth testing
+- `4_feature_engineering.md` -> how those patterns become model features
+- later docs -> leakage prevention, modeling, thresholds, monitoring
