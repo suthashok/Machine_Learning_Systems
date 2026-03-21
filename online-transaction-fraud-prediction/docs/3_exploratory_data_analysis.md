@@ -1,236 +1,190 @@
-# Online Transaction Fraud Detection System – Exploratory Data Analysis
+# Exploratory Data Analysis
 
+## Goal
 
-## What We're Trying to Figure Out
+This doc captures the main things worth checking before feature engineering.
 
-Before jumping into feature engineering, we need to understand what we're dealing with. Main questions:
+The purpose of EDA here is not to describe every column. It is to answer a few practical questions:
 
-- How much fraud is actually in this dataset?
-- Does fraud look different across transaction types?
-- Any obvious patterns that separate fraud from legit?
-- What might be useful for feature engineering?
-
-Bottom line: looking for **where risk concentrates**. Fraud isn't random - it clusters around certain cards, devices, email domains, etc.
-
----
-
-## Dataset at a Glance
-
-- **~590k transactions** - decent size
-- **~3.5% fraud rate** - heavily imbalanced (typical - if fraud was common, the business would have bigger problems)
-
-This means:
-- Accuracy is useless (99% accuracy just by predicting "not fraud" - meaningless)
-- Need to think about precision/recall tradeoffs
-- Eventually need to optimize for expected value ($ saved vs $ pissed-off customers from false declines)
+- how imbalanced is fraud?
+- where does fraud concentrate?
+- what looks useful for feature engineering?
+- what data issues do we need to account for?
 
 ---
 
-## Missing Data - First Red Flag
+## What we want to learn first
 
-Quick scan of missingness:
+For this dataset, the first pass of EDA should focus on:
 
-Identity fields are a disaster - lots of nulls:
-- `DeviceInfo` - missing everywhere
-- `id_30`, `id_31` - browser/OS signals, also missing a ton
-- Most of the `id_*` columns have huge gaps
+1. class imbalance
+2. missingness
+3. amount patterns
+4. entity concentration
+5. time patterns
 
-Why? Real world problems:
-- Device fingerprinting doesn't always work
-- Privacy settings / tracking blockers
-- Some payment flows just don't collect this stuff
-
-**Interesting observation**: Missingness itself might be predictive. If fraudsters are deliberately blocking tracking, rows with null device info might have higher fraud rates. Need to check this.
+These are the main things that usually shape fraud features and validation strategy.
 
 ---
 
-## Transaction Amount - Follow the Money
+## 1. Class imbalance
 
-Looking at `TransactionAmt`:
+Fraud is a small minority class in this dataset.
 
-Questions running through my head:
-- Do fraudsters go for small amounts (card testing) or big tickets (maximize value)?
-- Is there a "sweet spot" where fraud concentrates?
-- Are legit transactions clustered differently?
+That has a few direct implications:
+- raw accuracy is not useful
+- we need to care more about ranking, separation, and calibration
+- feature engineering should focus on finding concentrated pockets of risk, not global averages
 
-Typical fraud patterns from experience:
-- **Small transactions** (<$10) - card testing, checking if cards work
-- **Medium transactions** ($50-500) - goods that are easy to resell (electronics, gift cards)
-- **Large transactions** - less common but higher impact
-
-Need to bucket these and check fraud rates per bucket.
+This also means we should expect a lot of features to look weak in isolation.
 
 ---
 
-## Where Fraud Clusters - Entity Risk
+## 2. Missingness
 
-Fraud doesn't spread evenly. It pools around specific cards, devices, email domains. This is where we need to look:
+A lot of identity-related fields are sparse.
 
-| Entity | Features |
-|--------|----------|
-| Card | `card1` - `card6` |
-| Email domain | `P_emaildomain`, `R_emaildomain` |
-| Address | `addr1`, `addr2` |
-| Device | `DeviceType`, `DeviceInfo` |
+Examples:
+- `DeviceInfo`
+- `DeviceType`
+- several `id_*` fields
 
-For each one, calculate:
+This matters for two reasons:
 
-```
-fraud_rate = fraud_count / total_transactions_for_that_entity
-```
+### Data quality angle
+We cannot assume these fields are consistently available, so null handling has to be part of the pipeline.
 
+### Signal angle
+Missingness may itself be useful.
+For example:
+- identity missing vs present
+- device info missing vs present
+- number of missing identity fields
 
-Look for:
-- Entities with crazy high fraud rates (red flags)
-- Entities with huge volume but moderate fraud (impact)
-- Rare entities that are 100% fraud (probably compromised)
-
-These become features later - like "historical fraud rate for this card1 value".
+This is worth checking early because sparse fraud datasets often contain signal in what is absent, not just what is present.
 
 ---
 
-## Timing Patterns - Fraud Comes in Waves
+## 3. Transaction amount
 
-Using `TransactionDT` (relative time, but ordering is what matters):
+`TransactionAmt` is one of the first things to inspect.
 
-Check:
-- Transaction volume over time
-- Fraud rate over time
+Main questions:
+- do fraud and legit transactions differ by amount?
+- is fraud concentrated in small, medium, or large amounts?
+- does amount behave differently across product or entity groups?
 
-Fraud campaigns usually hit in **bursts**. If you see fraud rate spike on Tuesday then drop back down, someone was probably running cards.
+Useful first cuts:
+- raw distribution
+- log distribution
+- fraud rate by amount bucket
 
-This is useful for:
-- Detecting attack windows
-- Building velocity features ("how many transactions from this card in last hour")
-
----
-
-## Device Signals - Fraudsters Get Sloppy
-
-When fraudsters use emulators, bots, or spoofed devices, the device fingerprints often look weird.
-
-Look at:
-- `DeviceType` - mobile vs desktop fraud rates
-- `DeviceInfo` - specific device models
-- Browser/OS combos that don't make sense (like "Safari on Windows" - possible but suspicious)
-
-Common red flags:
-- Device fingerprints that appear too frequently
-- Emulated browser environments
-- Mismatched OS/browser combos
-- Unusual screen resolutions (bots sometimes use weird defaults)
+Reason to do this early:
+- amount often interacts with risk
+- amount buckets can become useful features
+- later thresholding / decision logic usually depends on transaction value anyway
 
 ---
 
-## Correlations - But Take with a Grain of Salt
+## 4. Entity concentration
 
-With 300+ V features, correlations can help spot redundancy. But fraud patterns are rarely linear - two features might be uncorrelated but highly predictive when combined.
+Fraud is usually not spread uniformly across rows.
+It tends to cluster around repeated entities.
 
-Mainly using this to:
-- Spot obvious duplicates
-- Group related features
-- Avoid feeding the model 50 versions of the same signal
+Main groups to inspect:
+- card fields
+- email domains
+- address fields
+- device / identity fields
 
----
+What to check for each:
+- transaction count
+- fraud count
+- fraud rate
+- concentration of volume
 
-# The 5 Things We Actually Check First
+This is important because feature engineering will likely rely on:
+- entity history
+- entity risk
+- cross-entity consistency
+- velocity
 
-Every fraud team runs these same 5 analyses. They're quick and usually tell you 80% of what you need to know.
-
----
-
-## 1. Fraud Rate by Amount Bucket
-
-Bin amounts:
-- $0-10
-- $10-50  
-- $50-100
-- $100-500
-- $500+
-
-Check fraud rate per bucket.
-
-What this tells you:
-- Is card testing happening? (small buckets elevated)
-- Where's the biggest loss exposure? (medium buckets might have highest fraud volume)
-- Thresholds for rules later
+EDA should help confirm which entity groups are worth prioritizing.
 
 ---
 
-## 2. Top Risky Entities
+## 5. Time patterns
 
-Rank by fraud rate:
-- `card1` values
-- Email domains
-- Device types
-- Addresses
+`TransactionDT` is relative time, but ordering still matters.
 
-Look at both:
-- **Highest fraud rate** (even if low volume)
-- **Highest fraud volume** (rate * count)
+Things worth checking:
+- transaction volume over time
+- fraud rate over time
+- whether fraud appears in bursts
+- whether there are visible shifts in behavior over the dataset span
 
-This shows you where fraud is concentrating. Usually a handful of entities drive most of the risk.
+This matters for two reasons:
+1. it helps with fraud intuition
+2. it affects validation design
 
----
-
-## 3. Velocity - How Fast Things Happen
-
-Count transactions per entity over time windows:
-- Transactions per card in last hour/day
-- Transactions per device in last hour
-- Transactions per email in last day
-
-Fraudsters:
-- Hit cards fast before they get blocked
-- Test multiple cards from same device
-- Run sequences of small amounts
-
-These are your strongest features.
+If fraud is non-stationary over time, random splitting becomes even less reliable.
 
 ---
 
-## 4. Fraud Rate Over Time
+## 6. Device and identity signals
 
-Plot fraud rate by hour/day.
+Where identity data exists, it is worth checking whether fraud behaves differently by:
+- `DeviceType`
+- `DeviceInfo`
+- selected browser / OS style fields
+- selected `id_*` fields
 
-Look for:
-- Spikes (fraud campaigns)
-- Drops (something changed - new rule? fraudsters moved on?)
-- Patterns (fraudsters work nights/weekends?)
-
-This matters later for monitoring drift in production.
-
----
-
-## 5. Missingness as a Feature
-
-Compare fraud rate when fields are null vs present:
-- DeviceInfo missing? Higher fraud rate?
-- Browser attributes missing?
-- Identity fields missing?
-
-If missing = risky, that's a feature we can use directly.
+The main point is not to over-interpret these columns.
+It is to see whether they:
+- carry signal when present
+- create strong missingness patterns
+- help define repeatable entities or consistency checks
 
 ---
 
-# What We Learned
+## 7. What we are not trying to do in EDA
 
-Quick takeaways before moving to feature engineering:
+This EDA is not meant to:
+- fully explain every anonymized feature
+- optimize final feature selection
+- replace validation
+- draw strong conclusions from one-way plots alone
 
-1. **Fraud clusters** - entity-level risk is real. Need to capture this.
-2. **Velocity matters** - how fast things happen is as important as what happens.
-3. **Missing data might be meaningful** - not always, but worth checking.
-4. **Amount patterns exist** - small transactions for testing, medium for resale.
-5. **Fraud is bursty** - time patterns matter.
+The goal is just to narrow the search space for feature engineering.
 
 ---
 
-# Next Up
+## Initial takeaways to carry forward
 
-Feature engineering time. Based on this, we'll build:
-- Entity risk scores
-- Velocity features (counts over time windows)
-- Behavioral aggregations
-- Identity consistency checks
+Based on the dataset structure, the main working assumptions going into feature engineering are:
 
-See: [4_feature_engineering.md](4_feature_engineering.md)
+1. fraud is rare, so we need concentrated signals
+2. missingness may be predictive
+3. amount is likely useful but probably not enough on its own
+4. entity-level behavior matters more than single rows
+5. time order has to be respected in both features and validation
+
+---
+
+## What this means for feature engineering
+
+The next stage should focus on feature families like:
+- entity history
+- velocity
+- consistency checks
+- missingness indicators
+- amount transforms / buckets
+- temporal features derived from transaction order
+
+EDA should help prioritize which of these are worth building first.
+
+---
+
+## Next
+
+[4_feature_engineering.md](4_feature_engineering.md)
