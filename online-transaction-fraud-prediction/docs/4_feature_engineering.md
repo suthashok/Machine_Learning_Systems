@@ -1,242 +1,291 @@
 # Feature Engineering
 
-## What We're Building
+## Goal
 
-Raw data is useless by itself. We need to transform it into signals that actually catch fraud. This doc covers the features we'll build and why.
+This doc captures the main feature families we want for the IEEE-CIS fraud problem.
 
-Bottom line: fraud detection is all about **behavior, velocity, and entity risk**. Not just "is this transaction big?" but "is this transaction weird for this card/device/email?"
+The focus is not “add more features.”
+The focus is to build features that reflect how fraud actually shows up:
+- repeated risky entities
+- sudden changes in behavior
+- high transaction velocity
+- identity inconsistency
+- sparse / missing device signals
 
----
-
-## Golden Rule - No Leakage
-
-Everything we compute must use only data available **before or at the exact moment of this transaction**.
-
-Sounds obvious, but it's easy to screw up:
-- Can't use future transactions to compute averages
-- Can't use tomorrow's fraud label in today's features
-- When aggregating historical data, cutoff is strictly `t0`
-
-If we leak future info, model looks great in training and falls apart in production. Seen it happen.
+Main rule throughout: **no leakage**.
 
 ---
 
-## Feature Categories
+## Guiding principle
 
-### 1. Basic Transaction Features
+Raw transaction columns are useful, but they are usually not enough on their own.
 
-The raw stuff, maybe with some transforms:
-- `TransactionAmt` - amount (try log transform, amounts are usually skewed)
-- `ProductCD` - product type (categorical)
-- `card1` through `card6` - card fingerprints
-- `addr1`, `addr2` - billing/shipping-ish
+Fraud is more about:
+- how this transaction compares to past behavior
+- whether this entity has shown risk before
+- whether activity is happening too fast
+- whether identity signals are consistent
 
-Nothing fancy here, just baseline context.
-
----
-
-### 2. Entity Risk Features (This is where it gets interesting)
-
-Fraud clusters around specific cards, devices, emails. So we need to track historical behavior for each entity.
-
-**For each card, what's its history?**
-- `card_txn_count_30d` (transaction volume)
-- `card_avg_amount_30d` (typical spending)
-- `card_fraud_rate_30d` (historical risk - careful with target encoding)
-- `card_max_amount_7d` (biggest purchase recently)
-
-**For email domains:**
-- `domain_txn_count_30d`
-- `domain_fraud_rate_30d`
-- `domain_avg_amount_30d`
-
-**For devices:**
-- `device_txn_count_24h`
-- `device_distinct_cards_7d` (how many different cards used from this device)
-
-The idea: if this card normally does 2 transactions a week and suddenly does 10 today, something's off.
+So the feature set should move from **row-level values** to **behavioral signals**.
 
 ---
 
-### 3. Velocity - Speed Matters
+## Leakage rule
 
-Fraudsters move fast before cards get blocked. Velocity features catch this.
+For any transaction at time `t0`, features must only use data available at or before `t0`.
 
-**Time windows (need to experiment with these):**
-- 1 hour - catches rapid testing bursts
-- 24 hours - daily patterns
-- 7 days - weekly trends
+That means:
+- no future transactions in aggregates
+- no future labels
+- no global target encoding
+- no train/test mixing in historical features
 
-**Examples:**
-- `card_txn_count_1h`
-- `card_txn_count_24h`
-- `device_txn_count_1h`
-- `email_txn_count_24h`
-
-**Also useful:**
-- `card_amount_sum_1h` (total $ volume in last hour)
-- `card_txn_count_same_amount_24h` (repeated amounts - card testing pattern)
+If this rule is broken, validation results will look better than reality.
 
 ---
 
-### 4. Temporal Patterns
+## Feature families
 
-When things happen matters.
+### 1. Raw transaction features
 
-- `hour_of_day` (fraudsters work nights?)
-- `day_of_week` (weekends different?)
-- `time_since_last_txn` (gap since last activity from this card)
+These are the base features from the row itself.
 
-Legit users have routines. Fraudsters have bursts then silence.
+Examples:
+- `TransactionAmt`
+- `ProductCD`
+- `card1` to `card6`
+- `addr1`, `addr2`
+- `P_emaildomain`, `R_emaildomain`
 
----
+These are useful as context, but usually need transforms or aggregation to become strong fraud signals.
 
-### 5. Identity Consistency - The "Does This Make Sense?" Features
-
-Fraudsters often mix and match stolen credentials. Legit users tend to be consistent.
-
-**For this card, how many different...?**
-- `distinct_devices_per_card_30d`
-- `distinct_emails_per_card_30d`
-- `distinct_addresses_per_card_30d`
-
-**For this device, how many different...?**
-- `distinct_cards_per_device_7d`
-- `distinct_emails_per_device_7d`
-
-If one card suddenly shows up on 5 different devices this week, that's suspicious.
-
-**Also useful:**
-- `browser_os_mismatch_flag` (Safari on Windows? possible but odd)
+Likely handling:
+- log transform for amount
+- categorical encoding for low / medium cardinality columns
+- careful treatment of high-cardinality columns
 
 ---
 
-### 6. Device Risk
+### 2. Entity history features
 
-Devices can be burned (used for fraud) or clean.
+Fraud tends to repeat around the same cards, devices, emails, or addresses.
 
-- `device_txn_count_24h`
-- `device_fraud_rate_30d` (historical risk of this device)
-- `device_avg_amount_7d`
-- `device_velocity_hour` (how fast this device transacts)
+So for a given entity, useful features are things like:
+- prior transaction count
+- prior average amount
+- prior max amount
+- prior distinct counterpart count
+- prior time since last seen
 
-Also look at device clusters - if a device is hitting multiple cards, probably fraud.
+Examples:
+- transactions previously seen on this card
+- average amount for this email domain
+- number of cards seen on this device
+- number of devices used by this card
 
----
-
-### 7. Missingness as Signal
-
-Remember from EDA? Missing data might be intentional.
-
-- `is_deviceinfo_missing`
-- `is_browser_missing`
-- `is_identity_field_missing`
-- `is_email_domain_missing`
-
-If fraudsters block tracking, missing fields become features.
+These features matter because they give a baseline.
+Fraud often looks abnormal relative to an entity’s own history, not just the population average.
 
 ---
 
-## Encoding Strategy - Keep It Simple
+### 3. Velocity features
 
-| Type | Approach | Notes |
-|------|----------|-------|
-| Continuous | Log transform, standardize | Amounts usually right-skewed |
-| Low-cardinality categorical | One-hot | If <10 categories |
-| High-cardinality categorical | Frequency encoding | Count of occurrences / total |
-| Target encoding | Use with CAUTION | Leakage risk - must use expanding window |
-| Boolean | 0/1 flags | Fine as-is |
+Velocity is one of the strongest fraud patterns.
 
-**On target encoding**: If you encode "average fraud rate for this card1 value", you MUST compute it using only historical data before `t0`. No global averages.
+Things worth capturing:
+- transaction count in recent windows
+- amount sum in recent windows
+- repeated amounts in short windows
+- number of entities touched in a short time
 
----
+Typical windows:
+- 1 hour
+- 24 hours
+- 7 days
+- 30 days
 
-## Window Sizes - What Works
+Examples:
+- card transaction count in last 1h
+- device transaction count in last 24h
+- amount spent by card in last 1h
+- distinct cards used by device in last 7d
 
-Starting points (will tune later):
-
-| Window | What It Catches |
-|--------|-----------------|
-| 1 hour | Card testing, rapid bursts |
-| 6 hours | Short fraud campaigns |
-| 24 hours | Daily patterns |
-| 7 days | Weekly trends |
-| 30 days | Medium-term behavior |
-
-Need to be careful with very long windows (90d+) - data sparsity becomes an issue.
-
----
-
-## High Cardinality - Too Many Values
-
-Features like `card1`, `DeviceInfo`, `id_30` have thousands of unique values. Can't one-hot encode.
-
-**Options:**
-- **Frequency encoding** - replace value with its count in training data
-- **Count encoding** - transactions per this value
-- **Aggregate features** - instead of raw device ID, use `device_txn_count_24h`
-- **Rare value grouping** - bin values appearing <5 times into "rare" bucket
+These help detect:
+- card testing
+- bursty fraud attacks
+- device reuse
+- abnormal spikes in activity
 
 ---
 
-## Production Reality Check
+### 4. Temporal features
 
-Training is easy. Production is where this gets hard.
+Fraud is often time-sensitive, so transaction order should be turned into features where possible.
 
-**Training pipeline:**
-```python
-df_train = compute_features(transactions, cutoff_time=t0)
-```
+Useful examples:
+- hour-of-day
+- day-of-week
+- time since last transaction for same entity
+- time since first seen for same entity
 
-**Production pipeline (real-time):**  
-Need same features, computed same way, in milliseconds. Can't scan 30 days of history at inference time - too slow. Need pre-computed aggregates in a feature store.
-
-**Ideal setup:**
-
-- Batch jobs pre-compute daily aggregates
-    
-- Real-time service fetches pre-computed features + adds online velocity
-    
-- Feature definitions are identical between training and serving
-    
-
-Otherwise you get training/serving skew. Model works in notebook, fails in prod.
+These are simple, but often useful when combined with entity history and velocity.
 
 ---
 
-## Quick Validation Checklist
+### 5. Consistency features
 
-Before modeling, sanity check each feature:
+A lot of fraud is basically identity mismatch.
 
-- Any leakage? (does it use future data?)
-    
-- Distribution stable across time?
-    
-- Missing rate acceptable? (if 99% null, probably useless)
-    
-- Cardinality reasonable? (if every row has unique value, model can't generalize)
-    
-- Makes intuitive sense? (if you can't explain why it might work, maybe skip it)
-    
+Useful checks:
+- one card used across many devices
+- one device used across many cards
+- one card tied to many email domains
+- one address tied to many cards
 
----
+Examples:
+- distinct devices used by card
+- distinct cards seen on device
+- distinct emails seen for card
+- distinct addresses seen for card
 
-## Summary - What We're Building
-
-|Category|Example|Why|
-|---|---|---|
-|Velocity|`card_txn_count_1h`|Catches testing bursts|
-|Entity risk|`card_avg_amount_30d`|Baseline for anomaly detection|
-|Identity consistency|`distinct_devices_per_card_30d`|Catches identity switching|
-|Device risk|`cards_per_device_7d`|Detects mule devices|
-|Missingness|`is_deviceinfo_missing`|Fraudsters block tracking|
+These features are useful because legit behavior is usually more stable than fraudulent behavior.
 
 ---
 
-## Next Up
+### 6. Device / identity features
 
-Feature engineering done. Now we need to make damn sure we didn't accidentally leak future info.
+Where identity data exists, we should use it.
 
-See: [5_data_leakage_prevention.md](https://5_data_leakage_prevention.md/)
+Useful groups:
+- `DeviceType`
+- `DeviceInfo`
+- selected `id_*` columns
 
-Because nothing's worse than a model that looks great but fails because of leakage.
+Potential signals:
+- device frequency
+- device-card diversity
+- browser / OS style mismatch
+- presence / absence of identity data
+
+Because identity coverage is sparse, these features should be handled carefully:
+- nulls are expected
+- missingness may be signal
+- some fields may be noisy or unstable
+
+---
+
+### 7. Missingness features
+
+Missing data should be treated as its own feature family, not just a preprocessing issue.
+
+Examples:
+- device info missing flag
+- browser / OS missing flag
+- identity record present / absent
+- count of missing identity fields
+
+This matters because in fraud data, missingness is often not random.
+
+---
+
+## Encoding strategy
+
+### Continuous features
+Use standard numeric handling.
+Examples:
+- log transform for `TransactionAmt`
+- normalization only if model choice needs it
+
+### Low-cardinality categorical features
+Use simple encoding:
+- one-hot if small enough
+- otherwise label / ordinal style encoding depending on model
+
+### High-cardinality categorical features
+Avoid naive one-hot.
+
+Better options:
+- frequency encoding
+- count encoding
+- aggregated history features
+- rare bucket grouping
+
+### Target encoding
+Use only with care.
+
+If used at all:
+- compute in a leakage-safe way
+- use only past data or out-of-fold logic
+- never use full-dataset fraud rate directly
+
+---
+
+## Composite entities
+
+Single columns like `card1` or `DeviceInfo` may be noisy.
+
+So it is worth testing composite identifiers such as:
+- card + address
+- card + email domain
+- card + device
+- device + browser / OS style field
+
+These can sometimes behave more like a stable pseudo-identity than any one raw column.
+
+Not all of them will survive validation, but they are worth testing.
+
+---
+
+## What makes a feature worth keeping?
+
+Before keeping a feature, check:
+
+- does it use only past data?
+- does it have enough coverage?
+- is missingness manageable?
+- is it stable over time?
+- does it add signal beyond simpler alternatives?
+- can we explain why it might help?
+
+The point is not to maximize feature count.
+It is to keep features that are both useful and defensible.
+
+---
+
+## Production lens
+
+Even though this project is offline, features should still be designed with production logic in mind.
+
+That means:
+- feature definitions should be time-safe
+- training and inference logic should match
+- historical aggregates should be reproducible
+- online / offline skew should be avoided
+
+For IEEE-CIS this is mostly a design constraint, but it matters if the project is meant to reflect real fraud-system thinking.
+
+---
+
+## Feature direction for this project
+
+The first feature groups to prioritize are:
+
+1. raw transaction context
+2. amount transforms
+3. entity history
+4. velocity
+5. consistency checks
+6. missingness indicators
+7. selected identity / device features
+8. composite entity features where useful
+
+That gives a good balance between:
+- baseline tabular performance
+- fraud-specific behavior modeling
+- leakage-safe implementation
+
+---
+
+## Next
+
+`5_data_leakage_prevention.md`
