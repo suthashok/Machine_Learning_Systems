@@ -138,4 +138,4 @@ Leakage prevention here comes down to five rules:
 
 ## Next
 
-`6_modelling_and_calibration.md`
+[6_modelling_and_calibration.md](6_modelling_and_calibration.md)
