@@ -1,164 +1,140 @@
-
 # Problem Framing
 
 ## Goal
 
-This project has two goals:
+This project solves the IEEE-CIS fraud detection problem.
 
-1. Build a strong offline solution for the IEEE-CIS fraud detection problem.
-2. Show how the same problem would be framed in a real production fraud system.
+Task:
+- predict `isFraud` for each transaction
 
-The IEEE-CIS dataset is a labeled offline snapshot. So the implementation here is an offline modeling exercise, but the documentation will also cover the production thinking behind it.
+The project is built as an offline modeling exercise using the IEEE-CIS dataset.
+A separate document will cover what would need to change for a real production fraud system.
 
 ---
 
 ## What problem are we solving?
 
-At the dataset level, the task is simple:
+This is a transaction-level binary classification problem.
 
-> Predict `isFraud` for each transaction.
+For each transaction, we want one output:
 
-At the system level, the real problem is broader:
+> probability that the transaction is fraud
 
-> Use that fraud risk estimate to make a good transaction decision.
-
-That means this is not just a classification problem. In production, the model is one part of a larger decision system:
-- rules
-- ML model
-- thresholds / policy
-- review workflow
-- monitoring
-
-For IEEE-CIS, we only implement the modeling core. The rest is documented as production context.
+The dataset is split across transaction and identity tables, joined by `TransactionID`.
+`TransactionDT` is a relative time field, so it should be used for ordering, not as a real timestamp.
 
 ---
 
-## Business framing
+## What matters for this project
 
-Fraud modeling is not just about catching the most fraud.
+Three things matter most:
 
-Each decision has a tradeoff:
-- approve a bad transaction -> lose money
-- decline a good transaction -> lose revenue + hurt customer experience
+1. good features
+2. no leakage
+3. realistic validation
 
-So the model should output a fraud probability, and policy should decide what to do with it.
-
-For this project:
-- **offline objective** = learn a strong fraud ranking / probability model
-- **production objective** = use calibrated scores in a decision framework
-
----
-
-## Scope
-
-### In scope
-- offline fraud prediction on IEEE-CIS
-- time-aware validation
-- leakage-safe feature engineering
-- model evaluation
-- production-style system thinking in documentation
-
-### Out of scope
-- live deployment
-- real-time feature store
-- actual review queue / ops workflow
-- real chargeback pipeline
-- online threshold experimentation
+A model with strong offline metrics is not useful if:
+- features use future data
+- split logic is weak
+- performance does not hold on newer transactions
 
 ---
 
-## Key assumptions
+## Main assumptions
 
 ### 1. Prediction happens at transaction time
-For any transaction at time `t0`, features must only use data available at or before `t0`.
+For any transaction at time `t0`, features must use only data available at or before `t0`.
 
-No future transactions.
+No future rows.
 No future labels.
 No future aggregates.
 
-This is the main anti-leakage rule.
-
 ### 2. Transaction order matters
-`TransactionDT` is not a real timestamp, but it does give transaction ordering.
+`TransactionDT` is not a wall-clock timestamp, but it still gives the event order.
 
-We’ll use that ordering for:
+We should use that order for:
 - feature generation
-- train/validation split
+- train / validation split
 - leakage prevention
 
-### 3. IEEE-CIS is offline, but production concepts still matter
-The dataset is already labeled, so we do not need to solve label maturity operationally here.
-
-But in a real fraud system:
-- labels arrive late
-- thresholds matter
-- calibration matters
-- monitoring matters
-
-So those concepts are included to show production thinking, even if not fully implemented.
+### 3. This is an offline setup
+IEEE-CIS is a labeled historical dataset.
+So the focus here is:
+- offline feature engineering
+- offline model training
+- offline validation
+- offline score / threshold analysis
 
 ---
 
-## What does success look like?
+## What success looks like
 
-### For the IEEE-CIS task
-- strong out-of-time model performance
-- no leakage
-- robust feature engineering
-- good generalization to newer transactions
+For this project, success means:
 
-### For production-style thinking
-- calibrated probabilities
-- clear separation between model and policy
-- ability to reason about approval rate vs fraud loss
-- monitoring plan for drift and degradation
+- strong validation performance on newer transactions
+- leakage-safe feature engineering
+- stable score behavior across time splits
+- clear fraud ranking from the model
+
+Since fraud is imbalanced, raw accuracy is not useful.
+Model quality should be judged using ranking-focused metrics and score behavior.
 
 ---
 
-## Evaluation approach
+## Validation philosophy
 
-We should not validate this like a generic tabular ML problem.
+We should not use random split here.
 
-Fraud is time-dependent, and many features depend on historical behavior. So validation should reflect the real usage pattern:
+Use:
+- older transactions for training
+- newer transactions for validation
 
-- train on older transactions
-- validate on newer transactions
+Reason:
+- fraud changes over time
+- many useful features depend on history
+- random split can overstate performance
 
-Random splits are risky here because they can hide leakage and overstate performance.
-
----
-
-## Decision-system view
-
-The model output is not the final decision.
-
-The model produces:
-- fraud probability / risk score
-
-A production policy would then decide:
-- approve
-- decline
-- maybe review / step-up (not implemented here)
-
-That separation matters because:
-- model quality is about ranking + probability estimation
-- business quality is about decision outcomes
+Validation should reflect the way the model would be used.
 
 ---
 
-## Design principles for the rest of the project
+## What this project will produce
 
-1. Treat fraud as a decision problem, not just a classification problem.
-2. Respect transaction-time ordering everywhere.
-3. Engineer features around behavior, velocity, and entity risk.
-4. Assume missingness may itself be useful signal.
-5. Keep the IEEE-CIS solution grounded in what would work in production.
+By the end of the IEEE-CIS flow, we want:
+
+- a clean joined dataset
+- leakage-safe engineered features
+- a fraud model trained on older data
+- validation results on newer data
+- a score cutoff / threshold analysis
+
+That is the core offline solution.
 
 ---
 
-## What comes next
+## What this document does not cover
 
-- [2_data_sources_and_structure.md](2_data_sources_and_structure.md) -> what data we actually have
-- [3_exploratory_data_analysis.md](3_exploratory_data_analysis.md) -> what patterns are worth testing
-- [4_feature_engineering.md](4_feature_engineering.md) -> how those patterns become model features
-- later docs -> leakage prevention, modeling, thresholds, monitoring
+This doc does not cover full production concerns like:
+- label maturity
+- live scoring
+- monitoring
+- retraining
+- review workflows
+
+Those are important, but they are outside the IEEE-CIS scope for docs 1–7.
+
+---
+
+## Design principles for the rest of the repo
+
+1. Keep the setup strictly transaction-time safe.
+2. Respect transaction order everywhere.
+3. Prefer realistic validation over optimistic validation.
+4. Build features around behavior, history, and consistency.
+5. Keep the offline solution separate from production extension.
+
+---
+
+## Next
+
+[2_data_sources_and_structure.md](2_data_sources_and_structure.md)
