@@ -1,32 +1,61 @@
 # Online Transaction Fraud Detection
 
-A machine learning system to detect fraudulent online transactions using the IEEE-CIS Fraud Detection dataset.
+A machine learning project focused on solving the IEEE-CIS Fraud Detection problem.
 
 ## Overview
 
-This project implements a fraud detection model with proper consideration for business economics and production constraints. The focus is on building a classifier that maximizes profit per transaction, not just minimizing fraud.
+This project builds an offline fraud detection pipeline using the IEEE-CIS dataset.
 
-**Key principle:** Approve transactions that make us money, decline those that lose money—accounting for both fraud risk and legitimate customer impact.
+The current focus is:
+- understanding the dataset
+- building leakage-safe features
+- using time-aware validation
+- training a strong transaction-level fraud model
+- analyzing model score cutoffs
 
-## Documentation
-
-- **[Problem Framing](docs/1_problem_framing.md)** – Business objective, decision rules, and constraints. Start here to understand what we're optimizing for and why.
+The goal is to build the IEEE-CIS solution cleanly first.
+Production-specific extensions are kept separate.
 
 ## Dataset
 
-**IEEE-CIS Fraud Detection** (Kaggle Competition)
-
+Dataset: IEEE-CIS Fraud Detection (Kaggle)  
 https://www.kaggle.com/competitions/ieee-fraud-detection/data
 
-- Training set: 590K transactions with fraud labels
-- Test set: 506K transactions  
-- Features: 433 (transaction and identity information)
-- Class distribution: ~3.5% fraudulent (severe imbalance)
+Files used:
+- `train_transaction.csv`
+- `train_identity.csv`
+- `test_transaction.csv`
+- `test_identity.csv`
+
+High-level shape:
+- training set: ~590K transactions
+- test set: ~506K transactions
+- fraud rate in train: ~3.5%
+
+## Documentation
+
+The docs follow the same order as the project flow:
+
+1. `docs/1_problem_framing.md`
+2. `docs/2_data_sources_and_structure.md`
+3. `docs/3_exploratory_data_analysis.md`
+4. `docs/4_feature_engineering.md`
+5. `docs/5_data_leakage_prevention.md`
+6. `docs/6_modelling_and_calibration.md`
+7. `docs/7_threshold_optimization.md`
+
+A separate doc will cover what changes are needed to move from the IEEE-CIS setup to a production fraud system.
 
 ## Project Status
 
-🚧 Under development
+🚧 In progress
+
+Current phase:
+- design docs completed
+- baseline implementation is the next step
 
 ## Getting Started
 
-Download the dataset from Kaggle and place in the `data/` directory.
+1. Download the IEEE-CIS dataset from Kaggle
+2. Place the files under `data/raw/`
+3. Start with the first data join and split step
