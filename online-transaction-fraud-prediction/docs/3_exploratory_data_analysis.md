@@ -2,94 +2,89 @@
 
 ## Goal
 
-This doc captures the main things worth checking before feature engineering.
+This doc captures the first things worth checking in the IEEE-CIS data before feature engineering.
 
-The purpose of EDA here is not to describe every column. It is to answer a few practical questions:
+The goal is not to summarize every column.
+It is to answer a few practical questions:
 
 - how imbalanced is fraud?
-- where does fraud concentrate?
+- where does fraud seem to concentrate?
 - what looks useful for feature engineering?
-- what data issues do we need to account for?
+- what data issues do we need to handle carefully?
 
 ---
 
-## What we want to learn first
+## What I want to check first
 
 For this dataset, the first pass of EDA should focus on:
 
-1. class imbalance
+1. class balance
 2. missingness
-3. amount patterns
+3. amount behavior
 4. entity concentration
 5. time patterns
 
-These are the main things that usually shape fraud features and validation strategy.
+These are the things most likely to shape features and validation.
 
 ---
 
-## 1. Class imbalance
+## 1. Class balance
 
 Fraud is a small minority class in this dataset.
 
-That has a few direct implications:
+That immediately means:
 - raw accuracy is not useful
-- we need to care more about ranking, separation, and calibration
-- feature engineering should focus on finding concentrated pockets of risk, not global averages
+- we care more about ranking and separation
+- useful fraud signal will likely be concentrated, not broad
 
-This also means we should expect a lot of features to look weak in isolation.
+So the first assumption going in is: most rows will look normal, and the model has to find the pockets that do not.
 
 ---
 
 ## 2. Missingness
 
-A lot of identity-related fields are sparse.
-
-Examples:
+A lot of identity-related fields are sparse.  
+That includes things like:
 - `DeviceInfo`
 - `DeviceType`
-- several `id_*` fields
+- several `id_*` fields 
 
-This matters for two reasons:
+This matters in two ways:
 
-### Data quality angle
-We cannot assume these fields are consistently available, so null handling has to be part of the pipeline.
+- we need to handle nulls cleanly
+- missingness itself may be predictive
 
-### Signal angle
-Missingness may itself be useful.
-For example:
-- identity missing vs present
-- device info missing vs present
-- number of missing identity fields
+So early checks should compare fraud rate for:
+- field present vs missing
+- identity present vs absent
+- low-missingness vs high-missingness rows
 
-This is worth checking early because sparse fraud datasets often contain signal in what is absent, not just what is present.
+This is one of the first things worth testing because it can turn into simple, useful features later.
 
 ---
 
 ## 3. Transaction amount
 
-`TransactionAmt` is one of the first things to inspect.
+`TransactionAmt` is one of the first columns worth looking at.
 
 Main questions:
-- do fraud and legit transactions differ by amount?
-- is fraud concentrated in small, medium, or large amounts?
-- does amount behave differently across product or entity groups?
+- does fraud behave differently by amount?
+- is fraud concentrated in small, medium, or large transactions?
+- does the amount distribution suggest useful buckets or transforms?
 
-Useful first cuts:
+Useful first checks:
 - raw distribution
 - log distribution
 - fraud rate by amount bucket
 
-Reason to do this early:
-- amount often interacts with risk
-- amount buckets can become useful features
-- later thresholding / decision logic usually depends on transaction value anyway
+Amount is usually not enough on its own, but it often becomes more useful once combined with entity history or velocity.
 
 ---
 
 ## 4. Entity concentration
 
-Fraud is usually not spread uniformly across rows.
-It tends to cluster around repeated entities.
+Fraud is usually not spread evenly across rows.
+It tends to show up around repeated entities.
 
 Main groups to inspect:
 - card fields
@@ -97,91 +92,49 @@ Main groups to inspect:
 - address fields
 - device / identity fields
 
-What to check for each:
+For each one, the first checks should be:
 - transaction count
 - fraud count
 - fraud rate
-- concentration of volume
 
-This is important because feature engineering will likely rely on:
-- entity history
-- entity risk
-- cross-entity consistency
-- velocity
+This helps answer a simple question:
+- are there entities that look unusually risky?
+- are there entities that show up a lot in fraud even if their raw count is small?
 
-EDA should help confirm which entity groups are worth prioritizing.
+If yes, that is a strong signal for entity-based features later.
 
 ---
 
 ## 5. Time patterns
 
-`TransactionDT` is relative time, but ordering still matters.
+`TransactionDT` is relative time, but it still gives row order.
 
 Things worth checking:
 - transaction volume over time
 - fraud rate over time
 - whether fraud appears in bursts
-- whether there are visible shifts in behavior over the dataset span
+- whether the later part of the dataset looks different from the earlier part
 
 This matters for two reasons:
-1. it helps with fraud intuition
-2. it affects validation design
-
-If fraud is non-stationary over time, random splitting becomes even less reliable.
+- it gives some intuition about how fraud behaves
+- it helps confirm that validation should stay time-aware
 
 ---
 
-## 6. Device and identity signals
+## 6. What this EDA is really for
 
-Where identity data exists, it is worth checking whether fraud behaves differently by:
-- `DeviceType`
-- `DeviceInfo`
-- selected browser / OS style fields
-- selected `id_*` fields
+This stage is not meant to fully explain the dataset.
+It is mainly there to narrow the search space for feature engineering.
 
-The main point is not to over-interpret these columns.
-It is to see whether they:
-- carry signal when present
-- create strong missingness patterns
-- help define repeatable entities or consistency checks
+If this pass goes well, we should come out with a few working ideas:
 
----
+- missingness may carry signal
+- amount likely needs transformation or bucketing
+- fraud risk may cluster by entity
+- transaction order matters
+- history-based features are likely more useful than row-level values alone
 
-## 7. What we are not trying to do in EDA
-
-This EDA is not meant to:
-- fully explain every anonymized feature
-- optimize final feature selection
-- replace validation
-- draw strong conclusions from one-way plots alone
-
-The goal is just to narrow the search space for feature engineering.
-
----
-
-## Initial takeaways to carry forward
-
-Based on the dataset structure, the main working assumptions going into feature engineering are:
-
-1. fraud is rare, so we need concentrated signals
-2. missingness may be predictive
-3. amount is likely useful but probably not enough on its own
-4. entity-level behavior matters more than single rows
-5. time order has to be respected in both features and validation
-
----
-
-## What this means for feature engineering
-
-The next stage should focus on feature families like:
-- entity history
-- velocity
-- consistency checks
-- missingness indicators
-- amount transforms / buckets
-- temporal features derived from transaction order
-
-EDA should help prioritize which of these are worth building first.
+That is enough to move to the next stage.
 
 ---
 
