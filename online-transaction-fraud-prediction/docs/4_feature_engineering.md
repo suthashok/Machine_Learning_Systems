@@ -2,287 +2,186 @@
 
 ## Goal
 
-This doc captures the main feature families we want for the IEEE-CIS fraud problem.
+This doc lists the main feature groups worth building for IEEE-CIS.
 
-The focus is not “add more features.”
-The focus is to build features that reflect how fraud actually shows up:
-- repeated risky entities
-- sudden changes in behavior
-- high transaction velocity
-- identity inconsistency
-- sparse / missing device signals
-
-Main rule throughout: **no leakage**.
+The point is not to create a huge feature list.
+The point is to build features that reflect how fraud usually shows up:
+- risky entities
+- repeat activity in a short window
+- behavior that looks unusual for the same card / device / email
+- missingness that may carry signal
 
 ---
 
-## Guiding principle
+## Main rule
 
-Raw transaction columns are useful, but they are usually not enough on their own.
+For any transaction at time `t0`, features must use only data available at or before `t0`.
 
-Fraud is more about:
-- how this transaction compares to past behavior
-- whether this entity has shown risk before
-- whether activity is happening too fast
-- whether identity signals are consistent
+No future rows.
+No future labels.
+No full-dataset aggregates pretending to be history.
 
-So the feature set should move from **row-level values** to **behavioral signals**.
+If this rule breaks, validation results will be misleading.
 
 ---
 
-## Leakage rule
+## 1. Raw transaction features
 
-For any transaction at time `t0`, features must only use data available at or before `t0`.
-
-That means:
-- no future transactions in aggregates
-- no future labels
-- no global target encoding
-- no train/test mixing in historical features
-
-If this rule is broken, validation results will look better than reality.
-
----
-
-## Feature families
-
-### 1. Raw transaction features
-
-These are the base features from the row itself.
-
-Examples:
+Start with the basic row-level fields:
 - `TransactionAmt`
 - `ProductCD`
 - `card1` to `card6`
 - `addr1`, `addr2`
 - `P_emaildomain`, `R_emaildomain`
 
-These are useful as context, but usually need transforms or aggregation to become strong fraud signals.
+These are useful as a base, but usually not enough on their own.
 
 Likely handling:
 - log transform for amount
-- categorical encoding for low / medium cardinality columns
-- careful treatment of high-cardinality columns
+- basic encoding for categoricals
+- rare bucket for very sparse values if needed
 
 ---
 
-### 2. Entity history features
+## 2. Entity history features
 
-Fraud tends to repeat around the same cards, devices, emails, or addresses.
+Fraud often repeats around the same cards, devices, addresses, or email patterns.
 
-So for a given entity, useful features are things like:
-- prior transaction count
-- prior average amount
-- prior max amount
-- prior distinct counterpart count
-- prior time since last seen
+Useful examples:
+- prior transaction count for a card
+- prior average amount for a card
+- prior max amount for a card
+- prior transaction count for an email domain
+- prior transaction count for a device
+- time since last transaction for the same entity
 
-Examples:
-- transactions previously seen on this card
-- average amount for this email domain
-- number of cards seen on this device
-- number of devices used by this card
-
-These features matter because they give a baseline.
-Fraud often looks abnormal relative to an entity’s own history, not just the population average.
+These help because fraud often looks unusual relative to the entity’s own history.
 
 ---
 
-### 3. Velocity features
+## 3. Velocity features
 
-Velocity is one of the strongest fraud patterns.
+This is one of the most important groups.
 
-Things worth capturing:
-- transaction count in recent windows
-- amount sum in recent windows
-- repeated amounts in short windows
-- number of entities touched in a short time
+Useful signals:
+- transaction count in last 1h
+- transaction count in last 24h
+- amount sum in last 1h
+- repeated amount count in last 24h
+- number of cards seen on the same device in a short window
 
-Typical windows:
+Typical windows to test:
 - 1 hour
 - 24 hours
 - 7 days
 - 30 days
 
-Examples:
-- card transaction count in last 1h
-- device transaction count in last 24h
-- amount spent by card in last 1h
-- distinct cards used by device in last 7d
-
-These help detect:
-- card testing
-- bursty fraud attacks
-- device reuse
-- abnormal spikes in activity
+These help catch bursty behavior and card testing patterns.
 
 ---
 
-### 4. Temporal features
+## 4. Temporal features
 
-Fraud is often time-sensitive, so transaction order should be turned into features where possible.
+Even with relative time, a few simple time features are useful.
 
-Useful examples:
+Examples:
 - hour-of-day
 - day-of-week
-- time since last transaction for same entity
-- time since first seen for same entity
+- time since last transaction
+- time since first seen for an entity
 
-These are simple, but often useful when combined with entity history and velocity.
+These are simple, but often useful when combined with entity history.
 
 ---
 
-### 5. Consistency features
+## 5. Consistency features
 
-A lot of fraud is basically identity mismatch.
+A lot of fraud is basically mismatch.
 
 Useful checks:
-- one card used across many devices
-- one device used across many cards
-- one card tied to many email domains
-- one address tied to many cards
+- how many devices has this card used?
+- how many cards has this device seen?
+- how many emails are tied to this card?
+- how many addresses are tied to this card?
 
 Examples:
-- distinct devices used by card
-- distinct cards seen on device
-- distinct emails seen for card
-- distinct addresses seen for card
+- distinct devices per card
+- distinct cards per device
+- distinct emails per card
+- distinct addresses per card
 
-These features are useful because legit behavior is usually more stable than fraudulent behavior.
+Normal behavior is usually more stable than fraud behavior.
 
 ---
 
-### 6. Device / identity features
+## 6. Device / identity features
 
-Where identity data exists, we should use it.
+Where identity data exists, use it.
 
-Useful groups:
+Useful fields:
 - `DeviceType`
 - `DeviceInfo`
-- selected `id_*` columns
+- selected `id_*`
 
-Potential signals:
-- device frequency
-- device-card diversity
-- browser / OS style mismatch
-- presence / absence of identity data
+Possible signals:
+- how often the device appears
+- how many cards use the same device
+- whether identity data is present at all
 
-Because identity coverage is sparse, these features should be handled carefully:
-- nulls are expected
-- missingness may be signal
-- some fields may be noisy or unstable
+Since identity coverage is incomplete, these need careful null handling.
 
 ---
 
-### 7. Missingness features
+## 7. Missingness features
 
-Missing data should be treated as its own feature family, not just a preprocessing issue.
+Missing data should be treated as signal, not just a cleanup issue.
 
 Examples:
-- device info missing flag
+- `DeviceInfo` missing flag
+- identity-present flag
 - browser / OS missing flag
-- identity record present / absent
 - count of missing identity fields
 
-This matters because in fraud data, missingness is often not random.
+This is worth testing because missingness may not be random here.
 
 ---
 
-## Encoding strategy
+## 8. Composite entities
 
-### Continuous features
-Use standard numeric handling.
-Examples:
-- log transform for `TransactionAmt`
-- normalization only if model choice needs it
+Single fields like `card1` or `DeviceInfo` may be noisy on their own.
 
-### Low-cardinality categorical features
-Use simple encoding:
-- one-hot if small enough
-- otherwise label / ordinal style encoding depending on model
-
-### High-cardinality categorical features
-Avoid naive one-hot.
-
-Better options:
-- frequency encoding
-- count encoding
-- aggregated history features
-- rare bucket grouping
-
-### Target encoding
-Use only with care.
-
-If used at all:
-- compute in a leakage-safe way
-- use only past data or out-of-fold logic
-- never use full-dataset fraud rate directly
-
----
-
-## Composite entities
-
-Single columns like `card1` or `DeviceInfo` may be noisy.
-
-So it is worth testing composite identifiers such as:
+So it is worth testing combinations like:
 - card + address
 - card + email domain
 - card + device
-- device + browser / OS style field
 
-These can sometimes behave more like a stable pseudo-identity than any one raw column.
-
-Not all of them will survive validation, but they are worth testing.
+Some of these may behave more like a stable pseudo-identity.
 
 ---
 
-## What makes a feature worth keeping?
+## What to keep
 
-Before keeping a feature, check:
-
-- does it use only past data?
+Before keeping a feature, ask:
+- is it leakage-safe?
 - does it have enough coverage?
-- is missingness manageable?
-- is it stable over time?
+- is it stable across time?
 - does it add signal beyond simpler alternatives?
-- can we explain why it might help?
 
-The point is not to maximize feature count.
-It is to keep features that are both useful and defensible.
-
----
-
-## Production lens
-
-Even though this project is offline, features should still be designed with production logic in mind.
-
-That means:
-- feature definitions should be time-safe
-- training and inference logic should match
-- historical aggregates should be reproducible
-- online / offline skew should be avoided
-
-For IEEE-CIS this is mostly a design constraint, but it matters if the project is meant to reflect real fraud-system thinking.
+The goal is not feature count.
+The goal is useful signal.
 
 ---
 
-## Feature direction for this project
+## Takeaway
 
-The first feature groups to prioritize are:
+The feature set should move beyond raw row values and focus on:
+- entity history
+- velocity
+- consistency
+- missingness
+- a few simple time features
 
-1. raw transaction context
-2. amount transforms
-3. entity history
-4. velocity
-5. consistency checks
-6. missingness indicators
-7. selected identity / device features
-8. composite entity features where useful
-
-That gives a good balance between:
-- baseline tabular performance
-- fraud-specific behavior modeling
-- leakage-safe implementation
+That is the most likely path to a strong IEEE-CIS model.
 
 ---
 
