@@ -2,52 +2,58 @@
 
 ## Goal
 
-This doc lists the main leakage risks in the IEEE-CIS setup and the rules used to avoid them.
+This doc lists the main ways leakage can happen in the IEEE-CIS setup and the rules used to avoid it.
 
-Core rule:
+Main rule:
 
-> For any transaction at time `t0`, features must use only data available at or before `t0`.
+> for any transaction at time `t0`, features must use only data available at or before `t0`
+
+If this rule breaks, offline results will look better than they should.
 
 ---
 
 ## Why this matters
 
-Fraud models are easy to overstate offline because many useful features depend on history:
+Leakage is easy to create in fraud problems because many useful features depend on history.
+
+Examples:
 - prior transaction count
 - prior average amount
-- prior device/card usage
-- prior fraud rate
-- prior consistency patterns
+- prior device usage
+- prior entity risk
 
-If those features use future rows, validation stops being trustworthy.
+If those features use future rows, the model is no longer being tested fairly.
 
 ---
 
 ## Main leakage risks
 
 ### 1. Future-aware aggregates
+
 Unsafe examples:
-- card average amount computed on full data
+- card average amount built on full data
 - device transaction count using future rows
-- entity stats built before sorting by `TransactionDT`
+- entity history computed before sorting by `TransactionDT`
 
 Rule:
-- all history features must be past-only
+- all history features must be built from past rows only
 
 ### 2. Target leakage
+
 Unsafe examples:
-- fraud rate by `card1` computed on full train
-- target encoding built before split
-- any feature using `isFraud` outside fold-safe logic
+- fraud rate by `card1` built on full data
+- target encoding done before split
+- any feature using `isFraud` without fold-safe logic
 
 Rule:
 - if a feature uses the target, treat it as high risk
-- prefer count / recency / frequency features first
+- prefer count / frequency / recency features first
 
 ### 3. Random split
-Random train/validation split is risky because:
-- data has time order
-- history-based features depend on past behavior
+
+Random split is risky here because:
+- rows have time order
+- many features depend on history
 - shuffling can hide leakage
 
 Rule:
@@ -55,84 +61,89 @@ Rule:
 - validate on newer rows
 
 ### 4. Preprocessing leakage
+
 Unsafe examples:
-- fitting encoders on train + validation together
-- fitting imputers on full data
+- fitting encoders on full data
+- fitting imputers before split
 - scaling before split
-- using shared frequency tables across splits
+- using train + validation together to build mappings
 
 Rule:
 - fit preprocessing on training only
-- apply to validation / test after that
+- apply the same transform to validation / test
 
 ---
 
-## Safe implementation rules
+## Safe feature rules
 
-### Historical features
-For entity-based features:
+For any history-based feature:
 1. sort by `TransactionDT`
 2. compute using prior rows only
-3. never use future rows in the same entity history
+3. do not use future rows for the same entity
 
-### Split-aware feature generation
-Do not precompute unsafe full-dataset aggregates and reuse them everywhere.
+For any target-based feature:
+- use only if the setup is clearly leakage-safe
+- if unclear, drop it
 
-Feature generation should respect the validation setup.
-
-### Target-based features
-Only use if clearly leakage-safe:
-- out-of-fold in training
-- or strictly past-only by time
-
-If unclear, drop them.
+Simple safe features are better than stronger unsafe ones.
 
 ---
 
 ## Validation rules
 
-- use time-aware split
-- older data -> training
-- newer data -> validation
-- validation labels must never influence training features
-- final holdout should be later than training window
+Validation should always be time-aware:
+
+- older rows -> training
+- newer rows -> validation
+
+Also:
+- validation labels should never affect training features
+- final holdout, if used, should be later than training data
 
 ---
 
 ## Practical checks
 
-Before trusting results, verify:
+Before trusting a result, check:
 
-1. every history feature uses only past rows
-2. no target-based feature was built on full data
-3. preprocessing was fit on training only
-4. validation is time-aware
-5. stricter validation does not collapse performance
+1. does every history feature use only past rows?
+2. was any target-based feature built on full data?
+3. was preprocessing fit only on training data?
+4. is the split time-aware?
+5. does performance hold under stricter validation?
 
-If performance drops sharply after fixing split logic, leakage is a likely reason.
+If performance drops a lot after fixing split logic, leakage is a likely reason.
 
 ---
 
-## Default bias for this repo
+## What is usually safe
 
-When in doubt:
-- choose the simpler feature
-- choose the safer split
-- drop the suspicious encoding
+Usually safer:
+- raw row-level fields
+- missingness flags
+- log amount
+- past-only counts
+- past-only recency features
 
-A weaker safe model is better than a stronger leaky one.
+Usually riskier:
+- fraud-rate features
+- target encodings
+- rolling stats built on full data
+- entity summaries created before split
 
 ---
 
 ## Takeaway
 
-Leakage prevention here comes down to five rules:
+Leakage prevention here comes down to a few rules:
 
 1. respect transaction order
 2. use past-only history
-3. avoid unsafe target features
+3. be careful with target-based features
 4. fit preprocessing on training only
 5. validate on newer data
+
+If these rules hold, offline results are much more trustworthy.
 
 ---
 
